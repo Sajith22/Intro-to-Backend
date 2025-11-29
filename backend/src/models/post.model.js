@@ -17,6 +17,12 @@ const postSchema = new Schema(
             required:true,
             min:1,
             max:150
+            ccubciuc
+            W
+            WV
+            wv
+            wV
+            
         }
     },
 
