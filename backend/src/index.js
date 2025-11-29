@@ -9,7 +9,7 @@ dotenv.config({
 const startServer = async () => {
     try {
         await connectDB();
-
+uuiujviwvwuvweu
         app.on("error",(error) => {
             console.log("ERROR",error);
             throw error;
