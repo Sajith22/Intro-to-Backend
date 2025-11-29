@@ -1,26 +1,62 @@
-name: Node.js CI
+name: CI/CD Pipeline
 
-# This tells the robot: "Wake up every time I push code to the main branch"
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  build:
+  # JOB 1: THE TESTER (What you already had)
+  test-code:
     runs-on: ubuntu-latest
-
     steps:
-    # Step 1: Download your code
-    - uses: actions/checkout@v4
-    
-    # Step 2: Install Node.js
-    - name: Use Node.js 20
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
+      - uses: actions/checkout@v4
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run lint --if-present
+      # If this fails, the robot STOPS here.
+      - run: npm test 
+
+  # JOB 2: THE BUILDER (New!)
+  # This only runs if 'test-code' passes
+  build-artifact:
+    needs: test-code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # 1. Install dependencies again (fresh computer)
+      - run: npm ci --production 
+        # '--production' means: Don't install "Dev" tools like ESLint or Nodemon.
+        # We want the package to be small and clean for the server.
+
+      # 2. Pack it up! (Zip the files)
+      - name: Zip the application
+        run: zip -r my-backend-app.zip . -x "*.git*" "tests/*"
+        # This command zips everything BUT ignores git files and tests.
+
+      # 3. Upload the result so you can download it
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ready-to-deploy-package
+          path: my-backend-app.zip
+          retention-days: 5
+
+  # JOB 3: THE HEALTH CHECKER (The "Check Deployment" part)
+  verify-deployment:
+    needs: build-artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mock Deployment (Pretend to push to server)
+        run: echo "Deploying to server... Done!"
+
+      - name: Check if Server is Alive (Smoke Test)
+        # In real life, you replace 'google.com' with YOUR app's URL.
+        # The flag '-f' tells curl to FAIL if the site gives a 404 or 500 error.
+        run: curl -f https://www.google.com
         
-    # Step 3: Install your dependencies (like express, etc.)
-    - run: npm ci
-    
-    # Step 4: Run your tests (if you have any)
-    - run: npm test --if-present
+      - name: Notify on Success
+        run: echo "Deployment verified! The site is up and running."
